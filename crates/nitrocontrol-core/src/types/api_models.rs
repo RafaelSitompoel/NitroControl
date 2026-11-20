@@ -56,3 +56,8 @@ pub struct SensorHistoryQuery {
     pub range: Option<String>, // "5m", "30m", "1h", "24h"
     pub limit: Option<usize>,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BatteryLimiterRequest {
+    pub enabled: bool, // true = 80% limit, false = full charge
+}

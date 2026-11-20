@@ -49,3 +49,20 @@ code, pre, .font-mono {
 .animate-pulse-subtle {
   animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* ============================================================
+   Fan Blade Rotation Keyframe — used by FanGaugeCard
+   ============================================================ */
+@keyframes fan-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Speed classes — applied by FanGaugeCard based on mode/RPM */
+.fan-turbo   { animation: fan-spin 0.28s linear infinite; }
+.fan-max     { animation: fan-spin 0.38s linear infinite; }
+.fan-high    { animation: fan-spin 0.60s linear infinite; }
+.fan-normal  { animation: fan-spin 0.90s linear infinite; }
+.fan-low     { animation: fan-spin 1.40s linear infinite; }
+.fan-idle    { animation: fan-spin 2.20s linear infinite; }
+.fan-stopped { animation: none; }

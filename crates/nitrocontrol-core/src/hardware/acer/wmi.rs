@@ -61,6 +61,72 @@ impl AcerWmiInterface {
         result
     }
 
+    /// Battery limiter — Acer NitroSense uses SetGamingMiscSetting with:
+    ///   byte[0] = 5  → battery health limiter function
+    ///   byte[1] = 0  → disable limit (charge to 100%)
+    ///   byte[1] = 1  → enable 80% charge limit (Acer BattCare)
+    pub fn set_battery_limiter(enabled: bool) -> Result<()> {
+        match Self::probe_acer_gaming_wmi() {
+            WmiProbeResult::PermissionDenied(reason) => Err(NitroError::PermissionDenied(reason)),
+            WmiProbeResult::NotAvailable(reason) => Err(NitroError::HardwareNotSupported(reason)),
+            WmiProbeResult::Accessible => {
+                let limit_byte: u8 = if enabled { 1 } else { 0 };
+                // 16-byte input buffer: [5, limit_byte, 0, 0, ...]
+                let script = format!(
+                    "try {{ \
+                     $inst = Get-CimInstance -Namespace root\\wmi -ClassName AcerGamingFunction -ErrorAction Stop; \
+                     $inp = [byte[]](5, {limit_byte}, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0); \
+                     $res = Invoke-CimMethod -InputObject $inst -MethodName SetGamingMiscSetting -Arguments @{{ gmInput = $inp }} -ErrorAction Stop; \
+                     'SUCCESS' }} catch {{ 'FAIL:' + $_.Exception.Message }}"
+                );
+
+                let output = Command::new("powershell")
+                    .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+                    .output()
+                    .map_err(|e| NitroError::OperationFailed(e.to_string()))?;
+
+                let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if stdout.contains("SUCCESS") {
+                    Ok(())
+                } else {
+                    Err(NitroError::OperationFailed(format!(
+                        "Battery limiter WMI command failed: {}",
+                        stdout
+                    )))
+                }
+            }
+        }
+    }
+
+    /// Read current battery limiter state
+    pub fn get_battery_limiter() -> Result<bool> {
+        match Self::probe_acer_gaming_wmi() {
+            WmiProbeResult::PermissionDenied(reason) => Err(NitroError::PermissionDenied(reason)),
+            WmiProbeResult::NotAvailable(reason) => Err(NitroError::HardwareNotSupported(reason)),
+            WmiProbeResult::Accessible => {
+                let script = "try { \
+                    $inst = Get-CimInstance -Namespace root\\wmi -ClassName AcerGamingFunction -ErrorAction Stop; \
+                    $inp = [byte[]](5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0); \
+                    $res = Invoke-CimMethod -InputObject $inst -MethodName GetGamingMiscSetting -Arguments @{ gmInput = $inp } -ErrorAction Stop; \
+                    'VALUE:' + [int]$res.gmOutput[1] } catch { 'FAIL:' + $_.Exception.Message }";
+
+                let output = Command::new("powershell")
+                    .args(["-NoProfile", "-NonInteractive", "-Command", script])
+                    .output()
+                    .map_err(|e| NitroError::OperationFailed(e.to_string()))?;
+
+                let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if stdout.starts_with("VALUE:") {
+                    let val: u8 = stdout.trim_start_matches("VALUE:").trim().parse().unwrap_or(0);
+                    Ok(val == 1)
+                } else {
+                    // If we can't read, assume disabled
+                    Ok(false)
+                }
+            }
+        }
+    }
+
     pub fn set_gaming_fan_mode(mode: &str, speed_pct: Option<u32>) -> Result<()> {
         match Self::probe_acer_gaming_wmi() {
             WmiProbeResult::PermissionDenied(reason) => Err(NitroError::PermissionDenied(reason)),

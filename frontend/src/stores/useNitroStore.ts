@@ -22,6 +22,8 @@ interface NitroStore {
   activeFanMode: string;
   activePowerMode: string;
   coolboostEnabled: boolean;
+  batteryLimitEnabled: boolean;   // 80% BattCare limit
+  batteryLimitLoading: boolean;
   wsConnected: boolean;
   connectionError: string | null;
   notification: { message: string; type: 'success' | 'error' | 'info' } | null;
@@ -36,6 +38,8 @@ interface NitroStore {
   setPowerMode: (mode: string) => Promise<void>;
   setFanMode: (mode: string, speed?: number) => Promise<void>;
   toggleCoolBoost: (enabled: boolean) => Promise<void>;
+  setBatteryLimit: (enabled: boolean) => Promise<void>;
+  fetchBatteryLimit: () => Promise<void>;
   loadHistory: (range?: string) => Promise<void>;
   clearHistory: () => Promise<void>;
   saveSettings: (settings: AppSettings) => Promise<void>;
@@ -58,6 +62,8 @@ export const useNitroStore = create<NitroStore>((set, get) => {
     activeFanMode: 'Auto',
     activePowerMode: 'balanced',
     coolboostEnabled: false,
+    batteryLimitEnabled: false,
+    batteryLimitLoading: false,
     wsConnected: false,
     connectionError: null,
     notification: null,
@@ -86,8 +92,9 @@ export const useNitroStore = create<NitroStore>((set, get) => {
           connectionError: null,
         });
 
-        // Also initial history load
+        // Load history and battery limit state
         get().loadHistory('30m');
+        get().fetchBatteryLimit();
       } catch (err: any) {
         set({ connectionError: err.message || 'Failed to connect to backend' });
       }
@@ -123,7 +130,6 @@ export const useNitroStore = create<NitroStore>((set, get) => {
 
         ws.onclose = () => {
           set({ wsConnected: false });
-          // Auto-reconnect after 2 seconds
           if (!reconnectTimer) {
             reconnectTimer = setTimeout(() => {
               reconnectTimer = null;
@@ -224,6 +230,43 @@ export const useNitroStore = create<NitroStore>((set, get) => {
         set({
           notification: {
             message: err.message || 'Gagal memperbarui CoolBoost',
+            type: 'error',
+          },
+        });
+      }
+    },
+
+    fetchBatteryLimit: async () => {
+      try {
+        const data = await api.getBatteryLimit();
+        set({ batteryLimitEnabled: data.enabled });
+      } catch {
+        // Not accessible without admin — keep false
+      }
+    },
+
+    setBatteryLimit: async (enabled: boolean) => {
+      set({ batteryLimitLoading: true });
+      try {
+        await api.setBatteryLimit(enabled);
+        set({
+          batteryLimitEnabled: enabled,
+          batteryLimitLoading: false,
+          notification: {
+            message: enabled
+              ? '🔋 Battery limit 80% diaktifkan — BattCare melindungi baterai Anda'
+              : '🔋 Battery limit dinonaktifkan — pengisian penuh (100%)',
+            type: 'success',
+          },
+        });
+      } catch (err: any) {
+        set({ batteryLimitLoading: false });
+        if (err.message && (err.message.includes('Administrator') || err.message.includes('Permission'))) {
+          get().requestElevation();
+        }
+        set({
+          notification: {
+            message: err.message || 'Gagal mengubah battery limit',
             type: 'error',
           },
         });

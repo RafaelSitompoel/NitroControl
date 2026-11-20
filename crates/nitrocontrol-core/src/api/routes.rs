@@ -1,12 +1,12 @@
 use crate::api::ws::ws_monitoring_handler;
 use crate::db::Database;
 use crate::hardware::capabilities::HardwareCapabilityDetector;
-use crate::hardware::controllers::{CoolBoostController, FanController, PowerController};
+use crate::hardware::controllers::{BatteryLimiterController, CoolBoostController, FanController, PowerController};
 use crate::hardware::discovery::HardwareDiscovery;
 use crate::service::MonitoringService;
 use crate::types::api_models::{
-    ApiResponse, CoolBoostRequest, FanControlRequest, PowerModeRequest, ProfileActivateRequest,
-    SensorHistoryQuery,
+    ApiResponse, BatteryLimiterRequest, CoolBoostRequest, FanControlRequest, PowerModeRequest,
+    ProfileActivateRequest, SensorHistoryQuery,
 };
 use crate::types::profiles::Profile;
 use crate::types::settings::AppSettings;
@@ -60,6 +60,9 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/v1/performance/mode", post(set_performance_mode))
         .route("/api/v1/fans/mode", post(set_fan_mode))
         .route("/api/v1/coolboost", post(set_coolboost))
+        // Battery Limiter
+        .route("/api/v1/battery/limit", get(get_battery_limit))
+        .route("/api/v1/battery/limit", post(set_battery_limit))
         // Profiles
         .route("/api/v1/profiles", get(list_profiles))
         .route("/api/v1/profiles", post(save_profile))
@@ -318,5 +321,54 @@ async fn update_settings(
     match state.db.save_settings(&settings) {
         Ok(_) => (StatusCode::OK, Json(ApiResponse::ok(settings))),
         Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse::err(e.to_string()))),
+    }
+}
+
+// ── Battery Limiter ──────────────────────────────────────────────────────────
+
+async fn get_battery_limit() -> impl IntoResponse {
+    match BatteryLimiterController::get_state() {
+        Ok(enabled) => {
+            let data = serde_json::json!({
+                "enabled": enabled,
+                "limit_percent": if enabled { 80 } else { 100 },
+                "description": if enabled {
+                    "80% BattCare limit active — extends battery lifespan"
+                } else {
+                    "No charge limit — battery charges to 100%"
+                }
+            });
+            (StatusCode::OK, Json(ApiResponse::ok(data)))
+        }
+        Err(e) => {
+            let status = match e {
+                crate::error::NitroError::PermissionDenied(_) => StatusCode::FORBIDDEN,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            (status, Json(ApiResponse::err(e.to_string())))
+        }
+    }
+}
+
+async fn set_battery_limit(
+    Json(payload): Json<BatteryLimiterRequest>,
+) -> impl IntoResponse {
+    match BatteryLimiterController::set_enabled(payload.enabled) {
+        Ok(_) => {
+            let msg = if payload.enabled {
+                "Battery charge limit set to 80% — BattCare active"
+            } else {
+                "Battery charge limit removed — full charge enabled"
+            };
+            (StatusCode::OK, Json(ApiResponse::ok(msg)))
+        }
+        Err(e) => {
+            let status = match e {
+                crate::error::NitroError::PermissionDenied(_) => StatusCode::FORBIDDEN,
+                crate::error::NitroError::HardwareNotSupported(_) => StatusCode::NOT_IMPLEMENTED,
+                _ => StatusCode::BAD_REQUEST,
+            };
+            (status, Json(ApiResponse::err(e.to_string())))
+        }
     }
 }

@@ -62,6 +62,14 @@ export const api = {
       body: JSON.stringify({ enabled }),
     }),
 
+  // Battery Limiter
+  getBatteryLimit: () => request<{ enabled: boolean; limit_percent: number; description: string }>('/battery/limit'),
+  setBatteryLimit: (enabled: boolean) =>
+    request<string>('/battery/limit', {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    }),
+
   getProfiles: () => request<Profile[]>('/profiles'),
   saveProfile: (profile: Profile) =>
     request<Profile>('/profiles', {
