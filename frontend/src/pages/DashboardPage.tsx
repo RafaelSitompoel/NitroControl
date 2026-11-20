@@ -1,12 +1,12 @@
 import React from 'react';
 import { useNitroStore } from '../stores/useNitroStore';
 import { StatCard } from '../components/StatCard';
+import { FanGaugeCard } from '../components/FanGaugeCard';
 import { CapabilityBadge } from '../components/CapabilityBadge';
 import {
   Cpu,
   MonitorDot,
   HardDrive,
-  Fan,
   Flame,
   Zap,
   ShieldAlert,
@@ -198,38 +198,24 @@ export const DashboardPage: React.FC = () => {
           }
         />
 
-        {/* CPU Fan Card */}
-        <StatCard
-          title="Fan 1 (CPU)"
-          value={fan1?.current_rpm ? fan1.current_rpm : 'Active'}
-          unit={fan1?.current_rpm ? 'RPM' : ''}
-          subtitle={`Status: ${fan1?.status || 'Auto Mode'}`}
-          icon={Fan}
-          accentColor="red"
-          source={fan1?.source || 'Acer Gaming WMI'}
+        {/* CPU Fan Gauge Widget */}
+        <FanGaugeCard
+          title="CPU fan"
+          rpm={fan1?.current_rpm}
+          mode={activeFanMode}
+          statusText={activeFanMode === 'Max' ? 'Max + 100%' : 'Auto (Firmware)'}
+          accentColor="#fb923c"
           onClick={() => setActiveTab('fans')}
-          badge={
-            capabilities && (
-              <CapabilityBadge status={capabilities.fan_control.status} />
-            )
-          }
         />
 
-        {/* GPU Fan Card */}
-        <StatCard
-          title="Fan 2 (GPU)"
-          value={fan2?.current_rpm ? fan2.current_rpm : 'Active'}
-          unit={fan2?.current_rpm ? 'RPM' : ''}
-          subtitle={`Status: ${fan2?.status || 'Auto Mode'}`}
-          icon={Fan}
-          accentColor="red"
-          source={fan2?.source || 'Acer Gaming WMI'}
+        {/* GPU Fan Gauge Widget */}
+        <FanGaugeCard
+          title="GPU fan"
+          rpm={fan2?.current_rpm}
+          mode={activeFanMode}
+          statusText={activeFanMode === 'Max' ? 'Max + 100%' : 'Auto (Firmware)'}
+          accentColor="#fb923c"
           onClick={() => setActiveTab('fans')}
-          badge={
-            capabilities && (
-              <CapabilityBadge status={capabilities.fan_control.status} />
-            )
-          }
         />
       </div>
 

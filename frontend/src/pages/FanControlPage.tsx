@@ -1,10 +1,11 @@
 import React from 'react';
 import { useNitroStore } from '../stores/useNitroStore';
 import { CapabilityBadge } from '../components/CapabilityBadge';
+import { FanGaugeCard } from '../components/FanGaugeCard';
 import { Fan, ShieldAlert, AlertTriangle, CheckCircle, Flame } from 'lucide-react';
 
 export const FanControlPage: React.FC = () => {
-  const { telemetry, capabilities, setFanMode, toggleCoolBoost, requestElevation } = useNitroStore();
+  const { telemetry, capabilities, setFanMode, toggleCoolBoost, requestElevation, activeFanMode } = useNitroStore();
 
   const fans = telemetry?.fans || [];
   const fan1 = fans[0];
@@ -54,75 +55,22 @@ export const FanControlPage: React.FC = () => {
         </div>
       )}
 
-      {/* Fan Tachometer Meters */}
+      {/* Fan Tachometer Gauges */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Fan 1 (CPU) Card */}
-        <div className="bg-nitro-card border border-nitro-border rounded-xl p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-nitro-red/10 border border-nitro-red/30 flex items-center justify-center text-nitro-red">
-                <Fan className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-heading font-bold text-base text-white">
-                  Fan 1 (CPU Fan)
-                </h3>
-                <p className="text-xs text-nitro-muted font-mono">
-                  {fan1?.source || 'Acer Gaming WMI'}
-                </p>
-              </div>
-            </div>
-            {fanControlCap && <CapabilityBadge status={fanControlCap.status} />}
-          </div>
-
-          <div className="py-4 text-center bg-nitro-bg rounded-lg border border-nitro-border/60">
-            <div className="text-4xl font-heading font-bold text-white tracking-tight">
-              {fan1?.current_rpm ? fan1.current_rpm : 'Auto Active'}
-            </div>
-            <div className="text-xs text-nitro-muted font-mono mt-1">
-              {fan1?.current_rpm ? 'Rotations Per Minute (RPM)' : fan1?.status || 'Tachometer Active'}
-            </div>
-          </div>
-
-          <div className="text-xs text-nitro-muted flex items-center justify-between font-mono pt-1">
-            <span>Operating Mode:</span>
-            <span className="text-white font-semibold">{fan1?.mode || 'Automatic'}</span>
-          </div>
-        </div>
-
-        {/* Fan 2 (GPU) Card */}
-        <div className="bg-nitro-card border border-nitro-border rounded-xl p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-nitro-red/10 border border-nitro-red/30 flex items-center justify-center text-nitro-red">
-                <Fan className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-heading font-bold text-base text-white">
-                  Fan 2 (GPU Fan)
-                </h3>
-                <p className="text-xs text-nitro-muted font-mono">
-                  {fan2?.source || 'Acer Gaming WMI'}
-                </p>
-              </div>
-            </div>
-            {fanControlCap && <CapabilityBadge status={fanControlCap.status} />}
-          </div>
-
-          <div className="py-4 text-center bg-nitro-bg rounded-lg border border-nitro-border/60">
-            <div className="text-4xl font-heading font-bold text-white tracking-tight">
-              {fan2?.current_rpm ? fan2.current_rpm : 'Auto Active'}
-            </div>
-            <div className="text-xs text-nitro-muted font-mono mt-1">
-              {fan2?.current_rpm ? 'Rotations Per Minute (RPM)' : fan2?.status || 'Tachometer Active'}
-            </div>
-          </div>
-
-          <div className="text-xs text-nitro-muted flex items-center justify-between font-mono pt-1">
-            <span>Operating Mode:</span>
-            <span className="text-white font-semibold">{fan2?.mode || 'Automatic'}</span>
-          </div>
-        </div>
+        <FanGaugeCard
+          title="CPU fan"
+          rpm={fan1?.current_rpm}
+          mode={activeFanMode}
+          statusText={activeFanMode === 'Max' ? 'Max + 100%' : 'Auto (Firmware)'}
+          accentColor="#fb923c"
+        />
+        <FanGaugeCard
+          title="GPU fan"
+          rpm={fan2?.current_rpm}
+          mode={activeFanMode}
+          statusText={activeFanMode === 'Max' ? 'Max + 100%' : 'Auto (Firmware)'}
+          accentColor="#fb923c"
+        />
       </div>
 
       {/* Control Actions & Safety Verification */}
