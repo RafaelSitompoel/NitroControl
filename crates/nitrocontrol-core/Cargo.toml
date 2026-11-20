@@ -1,0 +1,26 @@
+[package]
+name = "nitrocontrol-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["NitroControl Contributors"]
+description = "Core hardware discovery, monitoring, capability detection, and API engine for NitroControl"
+license = "MIT"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.41", features = ["full"] }
+axum = { version = "0.7", features = ["ws", "macros"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
+rusqlite = { version = "0.32", features = ["bundled-windows"] }
+sysinfo = "0.33"
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "2.0"
+parking_lot = "0.12"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.14"

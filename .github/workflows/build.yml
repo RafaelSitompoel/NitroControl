@@ -1,0 +1,52 @@
+name: Build NitroControl Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build Rust Backend
+        run: |
+          cargo build --release -p nitrocontrol-daemon
+
+      - name: Compile Launcher
+        run: |
+          $cscPath = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          & $cscPath /target:winexe /optimize+ /out:NitroControl.exe NitroControlApp.cs
+
+      - name: Package Release
+        run: |
+          $pkg = "release-pkg"
+          New-Item -ItemType Directory -Force -Path "$pkg\frontend\dist"
+          Copy-Item "NitroControl.exe" "$pkg\"
+          Copy-Item "target\release\nitrocontrol-daemon.exe" "$pkg\nitrocontrol-backend.exe"
+          Copy-Item "frontend\dist\*" "$pkg\frontend\dist\" -Recurse
+          Compress-Archive -Path "$pkg\*" -DestinationPath "NitroControl-windows-x64.zip"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NitroControl-windows-x64
+          path: NitroControl-windows-x64.zip

@@ -1,0 +1,33 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+
+# Node / Vite
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database & runtime cache
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.log
+.nitrocontrol_data/
+desktop_cache/
+window_data/
+
+# Packages & temporary builds
+package/
+*.zip
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

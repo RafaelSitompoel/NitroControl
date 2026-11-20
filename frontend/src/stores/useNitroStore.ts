@@ -1,0 +1,286 @@
+import { create } from 'zustand';
+import { api } from '../api/client';
+import {
+  AppSettings,
+  HardwareCapabilities,
+  HistoricalDataPoint,
+  Profile,
+  SystemInfo,
+  TelemetrySnapshot,
+} from '../types';
+
+interface NitroStore {
+  // State
+  telemetry: TelemetrySnapshot | null;
+  capabilities: HardwareCapabilities | null;
+  systemInfo: SystemInfo | null;
+  profiles: Profile[];
+  settings: AppSettings | null;
+  history: HistoricalDataPoint[];
+  historyRange: string;
+  activeTab: string;
+  wsConnected: boolean;
+  connectionError: string | null;
+  notification: { message: string; type: 'success' | 'error' | 'info' } | null;
+
+  // Actions
+  setActiveTab: (tab: string) => void;
+  setHistoryRange: (range: string) => void;
+  setNotification: (notif: { message: string; type: 'success' | 'error' | 'info' } | null) => void;
+  fetchInitialData: () => Promise<void>;
+  initWebSocket: () => void;
+  activateProfile: (id: string) => Promise<void>;
+  setPowerMode: (mode: string) => Promise<void>;
+  setFanMode: (mode: string, speed?: number) => Promise<void>;
+  toggleCoolBoost: (enabled: boolean) => Promise<void>;
+  loadHistory: (range?: string) => Promise<void>;
+  clearHistory: () => Promise<void>;
+  saveSettings: (settings: AppSettings) => Promise<void>;
+  requestElevation: () => Promise<void>;
+}
+
+export const useNitroStore = create<NitroStore>((set, get) => {
+  let ws: WebSocket | null = null;
+  let reconnectTimer: any = null;
+
+  return {
+    telemetry: null,
+    capabilities: null,
+    systemInfo: null,
+    profiles: [],
+    settings: null,
+    history: [],
+    historyRange: '30m',
+    activeTab: 'dashboard',
+    wsConnected: false,
+    connectionError: null,
+    notification: null,
+
+    setActiveTab: (tab: string) => set({ activeTab: tab }),
+    setHistoryRange: (range: string) => {
+      set({ historyRange: range });
+      get().loadHistory(range);
+    },
+    setNotification: (notif) => set({ notification: notif }),
+
+    fetchInitialData: async () => {
+      try {
+        const [sys, caps, profs, sets] = await Promise.all([
+          api.getSystemInfo().catch(() => null),
+          api.getCapabilities().catch(() => null),
+          api.getProfiles().catch(() => []),
+          api.getSettings().catch(() => null),
+        ]);
+
+        set({
+          systemInfo: sys,
+          capabilities: caps,
+          profiles: profs,
+          settings: sets,
+          connectionError: null,
+        });
+
+        // Also initial history load
+        get().loadHistory('30m');
+      } catch (err: any) {
+        set({ connectionError: err.message || 'Failed to connect to backend' });
+      }
+    },
+
+    initWebSocket: () => {
+      if (ws) {
+        ws.close();
+      }
+
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/monitoring`;
+
+      try {
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          set({ wsConnected: true, connectionError: null });
+          if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+          }
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const snapshot: TelemetrySnapshot = JSON.parse(event.data);
+            set({ telemetry: snapshot });
+          } catch (e) {
+            console.error('Failed to parse WebSocket telemetry:', e);
+          }
+        };
+
+        ws.onclose = () => {
+          set({ wsConnected: false });
+          // Auto-reconnect after 2 seconds
+          if (!reconnectTimer) {
+            reconnectTimer = setTimeout(() => {
+              reconnectTimer = null;
+              get().initWebSocket();
+            }, 2000);
+          }
+        };
+
+        ws.onerror = () => {
+          set({ wsConnected: false });
+        };
+      } catch (e) {
+        set({ wsConnected: false });
+      }
+    },
+
+    activateProfile: async (id: string) => {
+      try {
+        const activated = await api.activateProfile(id);
+        const updatedProfs = get().profiles.map((p) => ({
+          ...p,
+          is_active: p.id === id,
+        }));
+        set({
+          profiles: updatedProfs,
+          notification: {
+            message: `Profile "${activated.name}" activated successfully`,
+            type: 'success',
+          },
+        });
+      } catch (err: any) {
+        set({
+          notification: {
+            message: err.message || 'Failed to activate profile',
+            type: 'error',
+          },
+        });
+      }
+    },
+
+    setPowerMode: async (mode: string) => {
+      try {
+        const active = await api.setPerformanceMode(mode);
+        set({
+          notification: {
+            message: `Power scheme set to ${active.name}`,
+            type: 'success',
+          },
+        });
+      } catch (err: any) {
+        set({
+          notification: {
+            message: err.message || 'Failed to set power scheme',
+            type: 'error',
+          },
+        });
+      }
+    },
+
+    setFanMode: async (mode: string, speed?: number) => {
+      try {
+        await api.setFanMode(mode, speed);
+        set({
+          notification: {
+            message: `Fan mode set to ${mode}`,
+            type: 'success',
+          },
+        });
+      } catch (err: any) {
+        set({
+          notification: {
+            message: err.message || 'Failed to update fan mode',
+            type: 'error',
+          },
+        });
+      }
+    },
+
+    toggleCoolBoost: async (enabled: boolean) => {
+      try {
+        await api.setCoolBoost(enabled);
+        set({
+          notification: {
+            message: `CoolBoost ${enabled ? 'enabled' : 'disabled'}`,
+            type: 'success',
+          },
+        });
+      } catch (err: any) {
+        set({
+          notification: {
+            message: err.message || 'CoolBoost update failed',
+            type: 'error',
+          },
+        });
+      }
+    },
+
+    loadHistory: async (range: string = '30m') => {
+      try {
+        const history = await api.getHistory(range);
+        set({ history });
+      } catch (e) {
+        console.error('Failed to load history:', e);
+      }
+    },
+
+    clearHistory: async () => {
+      try {
+        await api.clearHistory();
+        set({
+          history: [],
+          notification: {
+            message: 'Monitoring history cleared',
+            type: 'info',
+          },
+        });
+      } catch (err: any) {
+        set({
+          notification: {
+            message: err.message || 'Failed to clear history',
+            type: 'error',
+          },
+        });
+      }
+    },
+
+    saveSettings: async (settings: AppSettings) => {
+      try {
+        const updated = await api.updateSettings(settings);
+        set({
+          settings: updated,
+          notification: {
+            message: 'Settings saved successfully',
+            type: 'success',
+          },
+        });
+      } catch (err: any) {
+        set({
+          notification: {
+            message: err.message || 'Failed to save settings',
+            type: 'error',
+          },
+        });
+      }
+    },
+
+    requestElevation: async () => {
+      try {
+        await api.elevate();
+        set({
+          notification: {
+            message: 'Meminta hak akses Administrator... Klik "Yes" pada jendela konfirmasi Windows.',
+            type: 'info',
+          },
+        });
+      } catch (err: any) {
+        set({
+          notification: {
+            message: err.message || 'Gagal meminta hak akses Administrator',
+            type: 'error',
+          },
+        });
+      }
+    },
+  };
+});
