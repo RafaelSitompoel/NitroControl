@@ -19,6 +19,9 @@ interface NitroStore {
   history: HistoricalDataPoint[];
   historyRange: string;
   activeTab: string;
+  activeFanMode: string;
+  activePowerMode: string;
+  coolboostEnabled: boolean;
   wsConnected: boolean;
   connectionError: string | null;
   notification: { message: string; type: 'success' | 'error' | 'info' } | null;
@@ -52,6 +55,9 @@ export const useNitroStore = create<NitroStore>((set, get) => {
     history: [],
     historyRange: '30m',
     activeTab: 'dashboard',
+    activeFanMode: 'Auto',
+    activePowerMode: 'balanced',
+    coolboostEnabled: false,
     wsConnected: false,
     connectionError: null,
     notification: null,
@@ -159,18 +165,19 @@ export const useNitroStore = create<NitroStore>((set, get) => {
     },
 
     setPowerMode: async (mode: string) => {
+      set({ activePowerMode: mode.toLowerCase() });
       try {
         const active = await api.setPerformanceMode(mode);
         set({
           notification: {
-            message: `Power scheme set to ${active.name}`,
+            message: `Skema daya diatur ke: ${active?.name || mode}`,
             type: 'success',
           },
         });
       } catch (err: any) {
         set({
           notification: {
-            message: err.message || 'Failed to set power scheme',
+            message: err.message || 'Gagal mengubah skema daya',
             type: 'error',
           },
         });
@@ -178,18 +185,22 @@ export const useNitroStore = create<NitroStore>((set, get) => {
     },
 
     setFanMode: async (mode: string, speed?: number) => {
+      set({ activeFanMode: mode });
       try {
         await api.setFanMode(mode, speed);
         set({
           notification: {
-            message: `Fan mode set to ${mode}`,
+            message: `Mode kipas berhasil diubah ke: ${mode}`,
             type: 'success',
           },
         });
       } catch (err: any) {
+        if (err.message && (err.message.includes('Administrator') || err.message.includes('Permission'))) {
+          get().requestElevation();
+        }
         set({
           notification: {
-            message: err.message || 'Failed to update fan mode',
+            message: err.message || 'Gagal memperbarui mode kipas',
             type: 'error',
           },
         });
@@ -197,18 +208,22 @@ export const useNitroStore = create<NitroStore>((set, get) => {
     },
 
     toggleCoolBoost: async (enabled: boolean) => {
+      set({ coolboostEnabled: enabled });
       try {
         await api.setCoolBoost(enabled);
         set({
           notification: {
-            message: `CoolBoost ${enabled ? 'enabled' : 'disabled'}`,
+            message: `CoolBoost berhasil ${enabled ? 'diaktifkan' : 'dinonaktifkan'}`,
             type: 'success',
           },
         });
       } catch (err: any) {
+        if (err.message && (err.message.includes('Administrator') || err.message.includes('Permission'))) {
+          get().requestElevation();
+        }
         set({
           notification: {
-            message: err.message || 'CoolBoost update failed',
+            message: err.message || 'Gagal memperbarui CoolBoost',
             type: 'error',
           },
         });

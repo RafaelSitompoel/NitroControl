@@ -23,6 +23,10 @@ export const DashboardPage: React.FC = () => {
     toggleCoolBoost,
     setPowerMode,
     requestElevation,
+    activeFanMode,
+    activePowerMode,
+    coolboostEnabled,
+    setActiveTab,
   } = useNitroStore();
 
   const cpu = telemetry?.cpu;
@@ -90,6 +94,7 @@ export const DashboardPage: React.FC = () => {
           accentColor="red"
           progressPercent={cpu?.usage_percent}
           source={cpu?.source}
+          onClick={() => setActiveTab('monitor')}
           badge={
             capabilities && (
               <CapabilityBadge status={capabilities.cpu_monitoring.status} showText={false} />
@@ -121,6 +126,7 @@ export const DashboardPage: React.FC = () => {
           }
           progressPercent={cpu?.temperature_celsius ? (cpu.temperature_celsius / 105) * 100 : 0}
           source="Windows ACPI / Kernel Sensors"
+          onClick={() => setActiveTab('monitor')}
         />
 
         {/* GPU Stat Card */}
@@ -137,6 +143,7 @@ export const DashboardPage: React.FC = () => {
           accentColor="emerald"
           progressPercent={gpu?.usage_percent || 0}
           source={gpu?.source || 'NVIDIA NVML'}
+          onClick={() => setActiveTab('monitor')}
           badge={
             capabilities && (
               <CapabilityBadge status={capabilities.gpu_monitoring.status} showText={false} />
@@ -168,6 +175,7 @@ export const DashboardPage: React.FC = () => {
           }
           progressPercent={gpu?.temperature_celsius ? (gpu.temperature_celsius / 95) * 100 : 0}
           source="NVIDIA NVML (nvidia-smi)"
+          onClick={() => setActiveTab('monitor')}
         />
       </div>
 
@@ -199,6 +207,7 @@ export const DashboardPage: React.FC = () => {
           icon={Fan}
           accentColor="red"
           source={fan1?.source || 'Acer Gaming WMI'}
+          onClick={() => setActiveTab('fans')}
           badge={
             capabilities && (
               <CapabilityBadge status={capabilities.fan_control.status} />
@@ -215,6 +224,7 @@ export const DashboardPage: React.FC = () => {
           icon={Fan}
           accentColor="red"
           source={fan2?.source || 'Acer Gaming WMI'}
+          onClick={() => setActiveTab('fans')}
           badge={
             capabilities && (
               <CapabilityBadge status={capabilities.fan_control.status} />
@@ -254,21 +264,36 @@ export const DashboardPage: React.FC = () => {
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => setFanMode('Auto')}
-                className="py-2 text-xs font-semibold rounded-lg bg-nitro-card hover:bg-nitro-cardHover border border-nitro-border text-white transition-all active:scale-95"
+                className={`py-2 text-xs font-semibold rounded-lg border transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer ${
+                  activeFanMode === 'Auto'
+                    ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.35)] ring-1 ring-emerald-500/50 font-bold'
+                    : 'bg-nitro-card hover:bg-nitro-cardHover border-nitro-border text-white'
+                }`}
               >
-                Auto
+                {activeFanMode === 'Auto' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+                <span>Auto</span>
               </button>
               <button
                 onClick={() => setFanMode('Max')}
-                className="py-2 text-xs font-semibold rounded-lg bg-nitro-red/20 hover:bg-nitro-red text-white border border-nitro-red/40 transition-all active:scale-95 shadow-nitro-glow"
+                className={`py-2 text-xs font-semibold rounded-lg border transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer ${
+                  activeFanMode === 'Max'
+                    ? 'bg-nitro-red border-red-500 text-white shadow-nitro-glow ring-1 ring-red-400/50 font-bold animate-pulse-subtle'
+                    : 'bg-nitro-red/20 hover:bg-nitro-red/40 border-nitro-red/40 text-white'
+                }`}
               >
-                Max Fans
+                {activeFanMode === 'Max' && <Flame className="w-3.5 h-3.5 text-white animate-pulse" />}
+                <span>Max Fans</span>
               </button>
               <button
                 onClick={() => setFanMode('Custom')}
-                className="py-2 text-xs font-semibold rounded-lg bg-nitro-card hover:bg-nitro-cardHover border border-nitro-border text-white transition-all active:scale-95"
+                className={`py-2 text-xs font-semibold rounded-lg border transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer ${
+                  activeFanMode === 'Custom'
+                    ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_12px_rgba(59,130,246,0.4)] ring-1 ring-blue-400/50 font-bold'
+                    : 'bg-nitro-card hover:bg-nitro-cardHover border-nitro-border text-white'
+                }`}
               >
-                Custom
+                {activeFanMode === 'Custom' && <span className="w-1.5 h-1.5 rounded-full bg-blue-300 animate-pulse" />}
+                <span>Custom</span>
               </button>
             </div>
             {capabilities?.fan_control.status === 'PermissionDenied' && (
@@ -294,19 +319,31 @@ export const DashboardPage: React.FC = () => {
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => setPowerMode('quiet')}
-                className="py-2 text-xs font-semibold rounded-lg bg-nitro-card hover:bg-nitro-cardHover border border-nitro-border text-white transition-all active:scale-95"
+                className={`py-2 text-xs font-semibold rounded-lg border transition-all active:scale-95 cursor-pointer ${
+                  activePowerMode === 'quiet'
+                    ? 'bg-cyan-950/70 border-cyan-500 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)] ring-1 ring-cyan-500/50 font-bold'
+                    : 'bg-nitro-card hover:bg-nitro-cardHover border-nitro-border text-white'
+                }`}
               >
                 Quiet
               </button>
               <button
                 onClick={() => setPowerMode('balanced')}
-                className="py-2 text-xs font-semibold rounded-lg bg-nitro-card hover:bg-nitro-cardHover border border-nitro-border text-white transition-all active:scale-95"
+                className={`py-2 text-xs font-semibold rounded-lg border transition-all active:scale-95 cursor-pointer ${
+                  activePowerMode === 'balanced'
+                    ? 'bg-blue-950/70 border-blue-500 text-blue-200 shadow-[0_0_10px_rgba(59,130,246,0.3)] ring-1 ring-blue-500/50 font-bold'
+                    : 'bg-nitro-card hover:bg-nitro-cardHover border-nitro-border text-white'
+                }`}
               >
                 Balanced
               </button>
               <button
                 onClick={() => setPowerMode('performance')}
-                className="py-2 text-xs font-semibold rounded-lg bg-nitro-red/20 hover:bg-nitro-red text-white border border-nitro-red/40 transition-all active:scale-95 shadow-nitro-glow"
+                className={`py-2 text-xs font-semibold rounded-lg border transition-all active:scale-95 cursor-pointer ${
+                  activePowerMode === 'performance'
+                    ? 'bg-nitro-red border-red-500 text-white shadow-nitro-glow ring-1 ring-red-400/50 font-bold'
+                    : 'bg-nitro-red/20 hover:bg-nitro-red/40 border-nitro-red/40 text-white'
+                }`}
               >
                 Performance
               </button>
@@ -330,13 +367,21 @@ export const DashboardPage: React.FC = () => {
               <div className="flex gap-2">
                 <button
                   onClick={() => toggleCoolBoost(true)}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-nitro-card hover:bg-nitro-cardHover border border-nitro-border text-white transition-all active:scale-95"
+                  className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-all active:scale-95 cursor-pointer ${
+                    coolboostEnabled
+                      ? 'bg-emerald-600 border-emerald-400 text-white shadow-[0_0_10px_rgba(16,185,129,0.4)] ring-1 ring-emerald-400 font-bold'
+                      : 'bg-nitro-card hover:bg-nitro-cardHover border-nitro-border text-nitro-muted hover:text-white'
+                  }`}
                 >
                   Enable
                 </button>
                 <button
                   onClick={() => toggleCoolBoost(false)}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-nitro-card hover:bg-nitro-cardHover border border-nitro-border text-white transition-all active:scale-95"
+                  className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg border transition-all active:scale-95 cursor-pointer ${
+                    !coolboostEnabled
+                      ? 'bg-zinc-800 border-zinc-600 text-white font-bold'
+                      : 'bg-nitro-card hover:bg-nitro-cardHover border-nitro-border text-nitro-muted hover:text-white'
+                  }`}
                 >
                   Disable
                 </button>

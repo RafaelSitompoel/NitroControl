@@ -11,6 +11,7 @@ interface StatCardProps {
   badge?: React.ReactNode;
   progressPercent?: number;
   source?: string;
+  onClick?: () => void;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -23,6 +24,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   badge,
   progressPercent,
   source,
+  onClick,
 }) => {
   const colorMap = {
     red: {
@@ -51,7 +53,10 @@ export const StatCard: React.FC<StatCardProps> = ({
 
   return (
     <div
-      className={`bg-nitro-card border border-nitro-border rounded-xl p-5 transition-all flex flex-col justify-between ${c.border}`}
+      onClick={onClick}
+      className={`bg-nitro-card border border-nitro-border rounded-xl p-5 transition-all flex flex-col justify-between ${c.border} ${
+        onClick ? 'cursor-pointer hover:scale-[1.01] active:scale-[0.99]' : ''
+      }`}
     >
       <div>
         <div className="flex items-center justify-between mb-3">
